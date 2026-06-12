@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户数据管理面板</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+        body{padding:30px;background:#f4f7fa}
+        .box{max-width:800px;margin:0 auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 12px #00000015}
+        h2{margin-bottom:20px;color:#222}
+        .item{margin:12px 0}
+        input{padding:10px;width:220px;border:1px solid #ddd;border-radius:6px;margin-right:8px;margin-bottom:8px}
+        button{padding:10px 12px;border:none;background:#4096ff;color:#fff;border-radius:6px;cursor:pointer;margin:2px}
+        button.del{background:#f56c6c}
+        button.edit{background:#67c23a}
+        #list{margin-top:20px;padding-top:20px;border-top:1px solid #eee}
+        .row{padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+    </style>
+</head>
+<body>
+<div class="box">
+    <h2>数据管理面板</h2>
+    <div class="item">
+        <input id="name" placeholder="输入姓名">
+        <input id="age" placeholder="输入年龄">
+        <button onclick="addData()">新增</button>
+        <button onclick="getList()">刷新列表</button>
+    </div>
+
+    <div class="item">
+        <input id="editName" placeholder="新姓名">
+        <input id="editAge" placeholder="新年龄">
+        <button class="edit" onclick="saveEdit()">保存修改</button>
+    </div>
+
+    <div id="list"></div>
+</div>
+
+<script>
+const baseUrl = window.location.origin;
+let selectOldName = "";
+
+async function addData(){
+    const name = document.getElementById("name").value.trim();
+    const age = document.getElementById("age").value.trim();
+    if(!name){alert("请填写姓名");return;}
+    const response = await fetch(`${baseUrl}/add`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name,age})
+    })
+    const res = await response.json();
+    if(res.code===200){
+        document.getElementById("name").value = "";
+        document.getElementById("age").value = "";
+        getList();
+    }else{
+        alert(res.msg);
+    }
+}
+
+async function getList(){
+    const res = await fetch(`${baseUrl}/list`);
+    const json = await res.json();
+    let html = "";
+    json.data.forEach(item=>{
+        html += `
+        <div class="row">
+            <span>姓名：${item.name}，年龄：${item.age}</span>
+            <div>
+                <button class="edit" onclick="openEdit('${item.name}','${item.age}')">编辑</button>
+                <button class="del" onclick="delData('${item.name}')">删除</button>
+            </div>
+        </div>`;
+    })
+    document.getElementById("list").innerHTML = html;
+}
+
+function openEdit(name,age){
+    selectOldName = name;
+    document.getElementById("editName").value = name;
+    document.getElementById("editAge").value = age;
+}
+
+async function saveEdit(){
+    const newName = document.getElementById("editName").value.trim();
+    const newAge = document.getElementById("editAge").value.trim();
+    if(!newName) return alert("请输入姓名");
+    const response = await fetch(`${baseUrl}/update`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            query:{name:selectOldName},
+            newData:{name:newName,age:newAge}
+        })
+    })
+    const res = await response.json();
+    alert(res.msg);
+    getList();
+}
+
+async function delData(name){
+    if(!confirm("确定删除这条记录？")) return;
+    await fetch(`${baseUrl}/delete`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name})
+    })
+    getList();
+}
+
+window.onload = getList;
+</script>
+</body>
+</html>
