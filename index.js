@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { MongoClient } = require('mongodb');
+const path = require('path');
 const app = express();
 
 app.use(express.json());
@@ -12,14 +13,14 @@ let db;
 async function connectDB() {
   await client.connect();
   db = client.db("testDB");
-  // 设置name字段为唯一索引，禁止重复用户名
   await db.collection("user").createIndex({ name: 1 }, { unique: true });
   console.log("MongoDB数据库连接成功，唯一索引已创建");
 }
 connectDB();
 
+// 根路由直接返回前端页面
 app.get('/', (req, res) => {
-  res.send("后端服务正常，数据库已连通");
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.post("/add", async (req, res) => {
