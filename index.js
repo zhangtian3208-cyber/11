@@ -1,61 +1,54 @@
-require('dotenv').config();
 const express = require('express');
-const { MongoClient } = require('mongodb');
+const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
 
+// 连接MongoDB，替换成你自己的数据库连接字符串
+mongoose.connect("你的MongoDB连接串")
+.then(()=>{
+    console.log("数据库连接成功");
+})
+.catch(err=>{
+    console.log("数据库连接失败",err);
+})
+
+// 定义用户模型
+const userSchema = new mongoose.Schema({
+    name:String,
+    age:Number
+});
+const userCollection = mongoose.model("user",userSchema);
+
+// 取消唯一索引，注释掉这一行：userCollection.createIndex({name:1},{unique:true})
+
 app.use(express.json());
+// 托管前端页面
+app.get('/',(req,res)=>{
+    res.sendFile(path.join(__dirname,"index.html"));
+})
 
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
-let db;
+// 新增数据接口
+app.post("/add",async (req,res)=>{
+    const {name,age} = req.body;
+    const data = new userCollection({name,age});
+    await data.save();
+    res.send({code:200,msg:"新增成功"});
+})
 
-async function connectDB() {
-  await client.connect();
-  db = client.db("testDB");
-  await db.collection("user").createIndex({ name: 1 }, { unique: true });
-  console.log("MongoDB数据库连接成功，唯一索引已创建");
-}
-connectDB();
+// 获取全部数据
+app.get("/list",async (req,res)=>{
+    const list = await userCollection.find();
+    res.send({code:200,data:list});
+})
 
-// 根路由直接返回前端页面
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+// 修改数据接口
+app.post("/edit",async (req,res)=>{
+    const {oldname,name,age} = req.body;
+    await userCollection.updateOne({name:oldname},{name,age});
+    res.send({code:200,msg:"修改成功"});
+})
 
-app.post("/add", async (req, res) => {
-  try {
-    const data = req.body;
-    await db.collection("user").insertOne(data);
-    res.json({ code: 200, msg: "新增成功", data });
-  } catch (err) {
-    res.json({ code: 400, msg: "该姓名已存在，无法重复添加" });
-  }
-});
-
-app.get("/list", async (req, res) => {
-  const list = await db.collection("user").find().toArray();
-  res.json({ code: 200, data: list });
-});
-
-app.get("/find", async (req, res) => {
-  const result = await db.collection("user").findOne(req.query);
-  res.json({ code: 200, data: result });
-});
-
-app.post("/update", async (req, res) => {
-  try {
-    const { query, newData } = req.body;
-    await db.collection("user").updateOne(query, { $set: newData });
-    res.json({ code: 200, msg: "更新成功" });
-  } catch (err) {
-    res.json({ code: 400, msg: "修改后的姓名已被占用" });
-  }
-});
-
-app.post("/delete", async (req, res) => {
-  await db.collection("user").deleteOne(req.body);
-  res.json({ code: 200, msg: "删除成功" });
-});
-
-module.exports = app;
+const port = process.env.PORT || 3000;
+app.listen(port,()=>{
+    console.log("服务启动");
+})
