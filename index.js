@@ -12,7 +12,9 @@ let db;
 async function connectDB() {
   await client.connect();
   db = client.db("testDB");
-  console.log("MongoDB数据库连接成功");
+  // 设置name字段为唯一索引，禁止重复用户名
+  await db.collection("user").createIndex({ name: 1 }, { unique: true });
+  console.log("MongoDB数据库连接成功，唯一索引已创建");
 }
 connectDB();
 
@@ -21,9 +23,13 @@ app.get('/', (req, res) => {
 });
 
 app.post("/add", async (req, res) => {
-  const data = req.body;
-  await db.collection("user").insertOne(data);
-  res.json({ code: 200, msg: "新增成功", data });
+  try {
+    const data = req.body;
+    await db.collection("user").insertOne(data);
+    res.json({ code: 200, msg: "新增成功", data });
+  } catch (err) {
+    res.json({ code: 400, msg: "该姓名已存在，无法重复添加" });
+  }
 });
 
 app.get("/list", async (req, res) => {
@@ -37,9 +43,13 @@ app.get("/find", async (req, res) => {
 });
 
 app.post("/update", async (req, res) => {
-  const { query, newData } = req.body;
-  await db.collection("user").updateOne(query, { $set: newData });
-  res.json({ code: 200, msg: "更新成功" });
+  try {
+    const { query, newData } = req.body;
+    await db.collection("user").updateOne(query, { $set: newData });
+    res.json({ code: 200, msg: "更新成功" });
+  } catch (err) {
+    res.json({ code: 400, msg: "修改后的姓名已被占用" });
+  }
 });
 
 app.post("/delete", async (req, res) => {
